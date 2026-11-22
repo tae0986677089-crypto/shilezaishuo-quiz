@@ -76,8 +76,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .choices { display: grid; gap: 8px; }
 .qnav { display: flex; justify-content: space-between; align-items: center; }
 .linkbtn { background: none; border: none; text-decoration: underline; color: var(--ink-soft); padding: 4px 0; }
-.stage-card { text-align: center; justify-items: center; }
-.stage-card h2 { font-size: 30px; }
 
 /* 結果 */
 .hero { display: grid; grid-template-columns: 140px 1fr; gap: 16px; align-items: center; }
@@ -150,6 +148,20 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .type-card { border: 2px solid var(--ink); border-radius: 6px; padding: 10px; display: grid; gap: 4px; align-content: start; background: var(--paper); min-width: 0; }
 .type-card span { font-size: 13px; color: var(--ink-soft); }
 .label-sm { font-weight: 700; font-size: 14px; }
+.mix { display: grid; gap: 8px; }
+.mix > div { display: grid; grid-template-columns: 4em 1fr 3em; gap: 8px; align-items: center; }
+.mix i { display: block; height: 16px; border: 2px solid var(--ink); border-radius: 4px; }
+.mix b { font-family: var(--font-num); text-align: right; }
+.side-top { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center; }
+.flow { display: flex; flex-wrap: wrap; gap: 6px; }
+.flow span { border: 2px dashed var(--rule); border-radius: 6px; padding: 4px 10px; font-weight: 700; color: var(--ink-soft); display: grid; text-align: center; }
+.flow span.on { border: 2px solid var(--ink); background: var(--yellow); color: var(--ink); }
+.flow small { font-size: 12px; font-weight: 500; }
+.dex { border-top: 1px dashed var(--rule); padding: 8px 0; }
+.dex summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; }
+.dex summary::after { content: "＋"; margin-left: auto; font-weight: 900; }
+.dex[open] summary::after { content: "－"; }
+.dex > p, .dex > div, .dex > dl { margin-top: 10px; }
 .hook { font-family: var(--font-cute); font-size: 18px; background: linear-gradient(transparent 60%, var(--yellow) 60%); justify-self: start; }
 .first3 { margin: 0; padding-left: 1.4em; display: grid; gap: 4px; }
 .method { font-size: 13px; color: var(--ink-soft); display: grid; gap: 6px; }
@@ -172,7 +184,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 
 <script>
 // ---------- 資料（草稿，來源見 09-人格分析師/輸出/v0.2草稿/） ----------
-const VERSION = "2.5-draft-arch48-ipip10";
+const VERSION = "2.6-draft-arch48-ipip10";
 
 const IPIP = `1|E|+|聚會時，我通常是帶動氣氛的那個人。
 2|A|-|我不太會去關心別人。
@@ -408,6 +420,65 @@ const WORK_STYLE = [
   "你偏外向，常常要跟人互動、需要開口的位置最能發揮你，例如對外窗口、帶活動、上台分享。",
 ];
 
+// ---------- 個人化：把前三名組合起來看（Tae 2026-11-22） ----------
+// 一件事從頭到尾的六段，每型最擅長哪一段
+const STAGES = ["想點子", "開頭", "規劃", "動手做", "收尾維持", "對外推廣"];
+const STAGE_OF = {
+  魔法師: [0, "想新做法，把點子變成能用的方法"], 叛逆者: [0, "找出舊做法哪裡該改"],
+  探險家: [1, "開路，找新方向、第一個去試"], 統治者: [2, "定目標、分工、拍板"], 智者: [2, "查清楚、算清楚再走"],
+  創造者: [3, "把想法做成作品"], 英雄: [3, "把最難的那段打下來"],
+  照顧者: [4, "顧好團隊和客人"], 凡人: [4, "讓事情變成大家每天用得上的樣子"], 天真者: [4, "穩住信任，讓大家安心繼續"],
+  弄臣: [5, "帶氣氛，讓更多人知道、覺得好玩"], 戀人: [5, "包裝、體驗和打動人"],
+};
+const STAGE_HELP = { 0: "魔法師、叛逆者", 1: "探險家", 2: "統治者、智者", 3: "創造者、英雄", 4: "凡人、照顧者", 5: "弄臣、戀人" };
+// 個人品牌配方：主調給素材、第二名給說話方式、第三名決定最打動誰
+const IP_SOURCE = {
+  探險家: "你親自去試、去走過的經歷", 弄臣: "生活裡好笑、出糗的小事", 戀人: "感情、美感和生活裡的小確幸",
+  照顧者: "你照顧人、幫人解決問題的過程", 智者: "你查證、研究過的知識", 英雄: "你挑戰一件難事的過程",
+  統治者: "你管理、做決定的方法", 魔法師: "你用新方法改變一件事的前後對比", 叛逆者: "你看不慣、想打破的說法和做法",
+  創造者: "你做作品的過程和技巧", 凡人: "一般人每天會遇到的真實生活", 天真者: "簡單、讓人安心的日常",
+};
+const IP_TONE = {
+  探險家: "像朋友帶路、說走就走", 弄臣: "搞笑、自嘲", 戀人: "溫柔、有畫面、講感受", 照顧者: "陪伴、體貼",
+  智者: "清楚、有根據", 英雄: "熱血、推人一把", 統治者: "直接給結論、有條理", 魔法師: "有驚喜、前後對比",
+  叛逆者: "直接、敢講真話", 創造者: "有風格、講究畫面", 凡人: "接地氣、像鄰居聊天", 天真者: "真誠、溫暖",
+};
+const IP_OFFER = {
+  探險家: "替觀眾先踩雷、少走冤枉路", 弄臣: "讓觀眾笑完也學到一招", 戀人: "讓觀眾覺得被懂、把生活過得更有感覺",
+  照顧者: "陪觀眾走過卡關的時候", 智者: "幫觀眾把複雜的事弄懂、做對決定", 英雄: "推觀眾一把，真的去做",
+  統治者: "給觀眾一套照做就會穩的方法", 魔法師: "幫觀眾用新方法省時間、換做法", 叛逆者: "幫觀眾看穿話術、找到另一條路",
+  創造者: "教觀眾做出自己的作品", 凡人: "給觀眾一般人就做得到的實用做法", 天真者: "讓觀眾安心，重新相信簡單的好",
+};
+const IP_MARKET = {
+  戀人: ["重視感受和美感的人，像女性客群、情侶、想把生活過得好看的人", "你很能體會別人心裡的感受，帶得動感性的消費"],
+  照顧者: ["家長、照顧家人的人、需要有人陪的人", "你天生知道別人缺什麼"],
+  智者: ["想把一件事學會、願意為知識付費的人", "你講的東西有根據，大家信得過"],
+  英雄: ["想變強、想改變自己的人，像健身、考證照、轉職", "你本身就是最好的示範"],
+  探險家: ["想嘗鮮、想出走、想換跑道的人", "你替他們先去試過"],
+  弄臣: ["想放鬆、想被逗笑的上班族和學生", "你讓他們願意每天回來看"],
+  凡人: ["一般上班族和小家庭，要實用、划算", "你講的就是他們的日常"],
+  天真者: ["想要安心、簡單生活的人", "你讓人放心、願意相信"],
+  創造者: ["想學做東西、願意為好作品買單的人", "你的作品就是證據"],
+  統治者: ["老闆、主管、想把事業做穩的人", "你講得出可以照做的方法"],
+  魔法師: ["想用新方法改變現況的人", "你讓他們看見改變真的做得到"],
+  叛逆者: ["受不了舊做法、想找另一條路的人", "你說出他們不敢說的話"],
+};
+// 圖鑑用：最容易跟哪一型搞混、差在哪
+const ARCH_DIFF = {
+  天真者: ["凡人", "天真者相信事情會變好、想過得單純；凡人想融入大家、被當成自己人。"],
+  凡人: ["照顧者", "凡人想跟大家站在一起；照顧者想把別人顧好，常把自己排在後面。"],
+  英雄: ["統治者", "英雄要證明自己做得到、衝最難的那段；統治者要整件事穩、有秩序。"],
+  照顧者: ["戀人", "照顧者付出是為了讓對方過得好；戀人付出是因為在乎那段關係和感覺。"],
+  探險家: ["叛逆者", "都不喜歡被綁住。探險家是想往外走、看新東西；叛逆者是想把不合理的東西改掉。"],
+  叛逆者: ["魔法師", "叛逆者先拆掉舊的；魔法師想變出新方法，讓事情轉變。"],
+  戀人: ["創造者", "戀人重感覺和關係；創造者重把東西做出來、留下自己的印記。"],
+  創造者: ["魔法師", "創造者要做出作品；魔法師要讓人或事情發生改變。"],
+  弄臣: ["探險家", "都愛新鮮。弄臣要的是現在好玩、跟大家一起樂；探險家要的是自己去看、去體驗。"],
+  智者: ["魔法師", "智者要把真相弄懂；魔法師懂了以後要拿去改變東西。"],
+  魔法師: ["智者", "魔法師在意改變有沒有發生；智者在意說法對不對。"],
+  統治者: ["英雄", "統治者靠規則和分工讓事情長久；英雄靠自己衝在最前面。"],
+};
+
 // 結論卡用：每個原型在鏡頭前的角色
 const ROLE = {
   天真者: "讓人安心的陪伴者", 探險家: "幫大家先去試的人", 智者: "幫大家查清楚的人", 英雄: "帶大家一起挑戰的人",
@@ -563,21 +634,20 @@ const S = window.claude?.hot?.data?.S ?? {
 window.claude?.hot?.snapshot?.(() => ({ S }));
 
 function shuffle(a) { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+// 只有題目，不分關、不說明每段在測什麼（Tae 2026-11-22）
 function buildSteps() {
   const it = i => ({ kind: "arch", q: ITEMS[i] });
   const half = ITEMS.length / 2;
-  const steps = [{ kind: "stage", no: 1, title: "第一關：你平常怎麼做事", sub: `${half} 題。照你實際的樣子選，不是你希望的樣子。大部分題目落在「很少」到「經常」很正常，只有真的非常像你才選「總是」。` }];
+  const steps = [];
   for (let i = 0; i < half / 2; i++) steps.push(it(i));
   steps.push({ kind: "attn", q: ATTN[0], i: 0 });
   for (let i = half / 2; i < half; i++) steps.push(it(i));
-  steps.push({ kind: "stage", no: 2, title: "第二關：你跟人相處的樣子", sub: `${IPIP_USED.length} 題，選像不像你。` });
   IPIP_USED.forEach(q => steps.push({ kind: "ipip", q }));
-  steps.push({ kind: "stage", no: 3, title: "最後一關：你在意什麼", sub: `${half} 題，答完就看你的完整報告。` });
   for (let i = half; i < ITEMS.length; i++) steps.push(it(i));
   return steps;
 }
 const STEPS = buildSteps();
-const QUESTION_COUNT = STEPS.filter(s => s.kind !== "stage").length;
+const QUESTION_COUNT = STEPS.length;
 
 const app = document.getElementById("app");
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -593,7 +663,7 @@ function renderIntro() {
       <div style="display:grid;gap:6px;min-width:0">
         <span class="eyebrow">試了再說 · 人格實驗室</span>
         <h1>測測你是<em>哪一種</em>小試</h1>
-        <p class="note">59 題，大約 7 分鐘。做完會拿到一份完整的人格報告，先帶你看懂自己，最後才告訴你什麼位置最適合你。</p>
+        <p class="note">59 題，大約 7 分鐘。照你實際的樣子選，不是你希望的樣子；只有真的非常像你才選「總是」。</p>
       </div>
     </div>
     <section class="sheet">
@@ -601,13 +671,14 @@ function renderIntro() {
       <ol class="gets">
         ${[
           ["12 型分數", "你最像的三種人、12 支試管，還有分數怎麼看"],
-          ["你是怎麼組成的", "前三名合起來看：你的主調，加上另外兩面替你帶來什麼"],
+          ["你的人格配方", "前三名各佔多少、合起來是什麼樣的你，第二、三名也分開詳細說明"],
           ["你是什麼樣的人", "人格畫像、你常問自己的問題、你正在練習的事"],
           ["你為什麼會這樣", "你真正想要的、讓你動起來的、你最怕的、你相信的"],
           ["強項與盲區", "你的天賦，和它們的另一面；怎麼長大"],
           ["你跟人相處的樣子", "人際裡的優點、容易卡住的地方、可以練習的"],
           ["能量補給", "什麼讓你充電、什麼讓你耗電，加上一段專屬打氣話"],
-          ["最後的結論", "依你的前兩名組合：適合的具體工作、經營個人品牌怎麼做、這個月可以先做的一件事"],
+          ["最後的結論", "依你前三名的配方：你在一件事裡負責哪一段、適合的工作、個人品牌怎麼做、這個月可以先做的一件事"],
+          ["12 型圖鑑", "每一型在做什麼、適合的工作、代表人物和品牌，跟哪一型容易搞混"],
         ].map(([t, d]) => `<li><b>${t}</b><span>${d}</span></li>`).join("")}
       </ol>
     </section>
@@ -628,14 +699,16 @@ function renderIntro() {
   const f = document.getElementById("f");
   f.querySelectorAll("[data-title]").forEach(b => b.onclick = () => { p.title = b.dataset.title; f.querySelectorAll("[data-title]").forEach(x => x.setAttribute("aria-pressed", x === b)); });
   const read = () => { p.birth = f.birth.value; p.surname = f.surname.value.trim(); p.hour = f.hour.value; p.consent = f.consent.checked; };
-  f.onsubmit = e => { e.preventDefault(); read(); if (!p.birth) { document.getElementById("err").hidden = false; f.birth.focus(); return; } S.view = "quiz"; S.idx = 0; S.demo = false; S.saved = false; render(); };
+  f.onsubmit = e => { e.preventDefault(); read(); if (!p.birth) { document.getElementById("err").hidden = false; f.birth.focus(); return; } clearAnswers(); S.view = "quiz"; render(); };
   document.getElementById("demo").onclick = () => {
     read(); if (!p.birth) p.birth = "1995-08-16";
-    randomAnswers();
+    clearAnswers(); randomAnswers();
     S.view = "result"; render();
   };
 }
 
+// 每次從頭開始都清空上一次的作答，避免題目已經被選好
+function clearAnswers() { S.b5 = {}; S.attn = {}; S.arch = {}; S.idx = 0; S.demo = false; S.saved = false; }
 function answeredCount() { return Object.keys(S.b5).length + Object.keys(S.attn).length + Object.keys(S.arch).length; }
 function randomAnswers() {
   S.demo = true;
@@ -650,15 +723,11 @@ function renderQuiz() {
   const pct = answeredCount() / QUESTION_COUNT * 100;
   const head = `<div class="progress"><div class="row" style="justify-content:space-between"><span class="eyebrow">實驗進度</span><span class="eyebrow">${answeredCount()} / ${QUESTION_COUNT}</span></div><div class="bar"><span style="width:${pct}%"></span></div></div>`;
   const nav = `<div class="qnav"><button class="linkbtn" id="back" ${S.idx === 0 ? "disabled" : ""}>上一題</button><button class="linkbtn" id="quit">回到開頭</button></div>`;
-  if (step.kind === "stage") {
-    const show = ["探險家", "智者", "統治者"][step.no - 1];
-    app.innerHTML = `${head}<section class="sheet stage-card"><div class="bob">${mascot(show, { size: 110, level: step.no / 3 })}</div><span class="stamp">STAGE ${step.no} / 3</span><h2>${step.title}</h2><p class="note">${step.sub}</p><button class="btn" id="go">開始</button></section>${nav}`;
-    document.getElementById("go").onclick = next;
-  } else {
+  {
     const isAttn = step.kind === "attn", isIpip = step.kind === "ipip";
     const scale = isIpip ? LIKERT : FREQ;
     const val = isAttn ? S.attn[step.i] : isIpip ? S.b5[step.q.n] : S.arch[step.q.id];
-    app.innerHTML = `${head}<section class="sheet"><div class="qhead">${mascot(isIpip ? "智者" : "探險家", { size: 64, level: pct / 100 })}<div style="display:grid;gap:6px">${isAttn ? `<span class="stamp" style="justify-self:start">小檢查</span>` : ""}<p class="qtext">${step.q.text}</p>${isAttn ? `<p class="note">用來確認大家有認真看題，不會算進結果。</p>` : ""}</div></div>
+    app.innerHTML = `${head}<section class="sheet"><div class="qhead">${mascot(isIpip ? "智者" : "探險家", { size: 64, level: pct / 100 })}<div style="display:grid;gap:6px"><p class="qtext">${step.q.text}</p></div></div>
       <div class="likert">${scale.map((l, i) => `<button data-v="${i + 1}" aria-pressed="${val === i + 1}"><span class="dot">${"ABCDE"[i]}</span><span>${l}</span></button>`).join("")}</div></section>${nav}`;
     app.querySelectorAll(".likert button").forEach(b => b.onclick = () => {
       const v = +b.dataset.v;
@@ -694,10 +763,42 @@ function renderResult() {
   const highShare = archAns.filter(v => v >= 4).length / archAns.length;
   // 證據：主調裡你選「經常／總是」的題目
   const pick = a => ITEMS.filter(q => q.arch === a && (S.arch[q.id] || 0) >= 4).sort((x, y) => S.arch[y.id] - S.arch[x.id])[0];
-  const ev1 = pick(t1), ev2 = pick(t2);
+  const ev1 = pick(t1), ev2 = pick(t2), ev3 = pick(t3);
   // 分數接近時直接說
   const CB = (COMBO[t1] || {})[t2];
   const close = raw[t1] - raw[t2] <= 1 ? `你的${t1}和${t2}分數幾乎一樣，這兩面在你身上差不多強，報告以${t1}為主軸來寫。` : "";
+
+  // 前三名各佔多少（只拿前三名的分數來比）
+  const sum3 = raw[t1] + raw[t2] + raw[t3];
+  const sh1 = Math.round(raw[t1] / sum3 * 100), sh2 = Math.round(raw[t2] / sum3 * 100);
+  const shares = { [t1]: sh1, [t2]: sh2, [t3]: 100 - sh1 - sh2 };
+  const g12 = raw[t1] - raw[t2], g23 = raw[t2] - raw[t3];
+  const shape = g12 <= 1 && g23 <= 1 ? ["三面平均型", `${t1}、${t2}、${t3}在你身上差不多強。你會看場合切換，很難只用一個標籤形容你，下面三型的說明都值得看。`]
+    : g12 <= 1 ? ["雙主調型", `${t1}和${t2}一樣強，常常同時出現；${t3}是你在特定場合才會拿出來的一面。`]
+    : g12 >= 4 ? ["鮮明主調型", `${t1}比其他兩面明顯很多，別人很容易一眼看出你是什麼樣的人。`]
+    : ["一主兩副型", `${t1}帶頭，${t2}和${t3}在不同場合出來幫忙。`];
+  // 12 型分數的分散程度（標準差）：越平均，越會看場合切換
+  const vals = Object.values(raw), mean = vals.reduce((x, y) => x + y, 0) / vals.length;
+  const sd = Math.sqrt(vals.reduce((x, y) => x + (y - mean) ** 2, 0) / vals.length);
+  const spread = sd < 2 ? "你 12 型的分數彼此很接近，代表你適應力強、什麼角色都能演一點；也因為這樣，任何單一類型的描述對你都只說中一部分。"
+    : sd > 3.5 ? "你 12 型的分數高低很分明，喜歡和不喜歡的事很清楚，所以下面的描述會比較貼近你。" : "";
+  const bottom = ranked[ranked.length - 1];
+  // 你在一件事裡負責哪一段
+  const stageOf = a => STAGE_OF[a][0];
+  const covered = new Set(top3.map(stageOf));
+  const closer = top3.find(a => [2, 4].includes(stageOf(a)));
+  let flow;
+  if (stageOf(t1) <= 1 && (closer || b5.C > 60)) flow = `你不只會開頭。${closer ? `你的${closer}那一面會幫你${STAGE_OF[closer][1]}` : "你做事有條理，會把計畫排好"}，所以你的計畫完成度會比一般的${t1}高，很適合自己當案子的負責人。`;
+  else if (stageOf(t1) <= 1) flow = `你最強的是前段，規劃和收尾不是你的主場。最好的分工是：你負責把事情開起來，後面交給${STAGE_HELP[2]}型的人排計畫、${STAGE_HELP[4]}型的人收尾，成功率最高。`;
+  else {
+    const miss = [0, 1, 2, 3, 4, 5].filter(i => !covered.has(i));
+    flow = `你顧不到的段落是${miss.map(i => `「${STAGES[i]}」`).join("")}。這幾段找${[...new Set(miss.slice(0, 2).map(i => STAGE_HELP[i]))].join("、")}型的人合作，你就能專心做自己最強的那段。`;
+  }
+  if (b5.C < 40 && !closer) flow += "你做事偏隨性，長期的事記得用行事曆或找一個夥伴幫你盯進度。";
+  // 個人品牌配方
+  const formula = `用${IP_TONE[t2]}的方式，說${IP_SOURCE[t1]}，${IP_OFFER[t1]}。`;
+  const market = `最容易被你打動的是${IP_MARKET[t3][0]}，因為你身上的${t3}那一面：${IP_MARKET[t3][1]}。`;
+  const evLine = (q, a) => (q ? `<p class="note">為什麼說你有${a}的一面：你在「${q.text}」選了「${FREQ[S.arch[q.id] - 1]}」。</p>` : "");
 
   const cl = c ? {
     s1: cultureLine("sign", c.sign, top3),
@@ -721,7 +822,7 @@ function renderResult() {
         <span class="eyebrow">實驗結果</span>
         <h1>${p.surname ? `${who}，你是` : "你是"}<br><span class="type">${t1}型</span>小試</h1>
         <p>${ARCH[t1].line}</p>
-        
+        <p class="note">你的配方：${top3.map(a => `${a} ${shares[a]}%`).join("｜")}</p>
       </div>
     </section>
 
@@ -730,7 +831,11 @@ function renderResult() {
     <section class="sheet">
       ${head("你最像的三種人", "分數最高的三型")}
       <div class="podium">${podium.map(([a, n, h]) => `<div class="pod"><div class="${n === 1 ? "bob" : ""}">${mascot(a, { size: n === 1 ? 84 : 64, level: raw[a] / top })}</div><b>${a}</b><div class="block" style="height:${h}px"><span>${n}</span></div></div>`).join("")}</div>
-      <p class="note">第一名是你的主調，決定你最在意什麼；第二、三名是你在不同場合會出現的另一面。${ties.length ? `${ties.join("；")}。` : ""}</p>
+      <div class="mix">${top3.map(a => `<div><span>${a}</span><i style="width:${shares[a]}%;background:${ARCH[a].color}"></i><b>${shares[a]}%</b></div>`).join("")}</div>
+      <p><b>你是「${shape[0]}」</b>：${shape[1]}</p>
+      ${spread ? `<p>${spread}</p>` : ""}
+      <p>你最不像的是<b>${bottom}</b>（${raw[bottom]} 分）：${ARCH[bottom].line}這通常不是你會主動做的事，需要的時候交給這型的人。</p>
+      <p class="note">百分比是前三名分數的比例。${ties.length ? `${ties.join("；")}。` : ""}</p>
     </section>
 
     <section class="sheet">
@@ -749,6 +854,7 @@ function renderResult() {
       <ul class="list">
         ${ev1 ? `<li><span>為什麼說你是${t1}：你在「${ev1.text}」選了「${FREQ[S.arch[ev1.id] - 1]}」。</span></li>` : ""}
         ${ev2 ? `<li><span>你的${t2}那一面：你在「${ev2.text}」選了「${FREQ[S.arch[ev2.id] - 1]}」。</span></li>` : ""}
+        ${ev3 ? `<li><span>你的${t3}那一面：你在「${ev3.text}」選了「${FREQ[S.arch[ev3.id] - 1]}」。</span></li>` : ""}
       </ul>
     </section>
 
@@ -792,10 +898,22 @@ function renderResult() {
       <p>${R.relationship.shine}</p>
       ${sub("容易卡住的地方")}${pts(R.relationship.shadows)}
       ${sub("可以練習的")}${pts(R.relationship.practice)}
-    </section>` : ""}
+    </section>
+
+    ${[[t2, "你的第二面"], [t3, "你的第三面"]].map(([a, label]) => REPORT[a] ? `<section class="sheet">
+      ${head(`${label}：${a}`, `${raw[a]} 分・佔 ${shares[a]}%`)}
+      <div class="side-top">${mascot(a, { size: 64, level: raw[a] / top })}<p class="quote">「${REPORT[a].manifesto}」</p></div>
+      <div class="chips">${REPORT[a].keywords.map(k => `<span>${k}</span>`).join("")}</div>
+      ${sub("它在你身上的樣子")}<p>${REPORT[a].as_second}</p>
+      ${sub("這一面讓你做得到")}${pts(REPORT[a].strengths.slice(0, 2))}
+      ${sub("在一件事裡，這一面負責")}<p>${STAGES[stageOf(a)]}：${STAGE_OF[a][1]}。</p>
+      ${sub("這一面適合的工作")}<div class="chips">${JOBS[a].map(j => `<span>${j}</span>`).join("")}</div>
+      <dl class="kv"><div><dt>常被聯想的人物</dt><dd>${REPORT[a].people.join("｜")}</dd></div><div><dt>常被歸為這型的品牌</dt><dd>${REPORT[a].brands.join("｜")}</dd></div></dl>
+      ${evLine(a === t2 ? ev2 : ev3, a)}
+    </section>` : "").join("")}` : ""}
 
     <section class="sheet">
-      ${head("你在人群裡的樣子", "第二關 10 題")}
+      ${head("你在人群裡的樣子")}
       <div class="traits">${traitVals.map(t => `<div style="display:grid;gap:4px"><div class="trait-head"><span>${t.low} ↔ ${t.high}</span></div><div class="scale"><i style="left:${t.v}%"></i></div><p style="font-size:15px">${t.t[lv(t.v)]}。</p></div>`).join("")}</div>
       
     </section>
@@ -811,9 +929,17 @@ function renderResult() {
 
     <section class="sheet verdict">
       <div class="row" style="justify-content:space-between"><span class="stamp">所以</span><span class="eyebrow">看完上面的結論</span></div>
-      <h2>適合你的工作</h2>
+      <h2>你在一件事裡的位置</h2>
+      <div class="flow">${STAGES.map((st, i) => { const who3 = top3.filter(a => stageOf(a) === i); return `<span class="${who3.length ? "on" : ""}">${st}${who3.length ? `<small>${who3.join("、")}</small>` : ""}</span>`; }).join("")}</div>
+      <p>${top3.map(a => `<b>${a}</b>的你負責${STAGE_OF[a][1]}`).join("；")}。</p>
+      <p>${flow}</p>
+    </section>
+
+    <section class="sheet">
+      ${head("適合你的工作", "看前三名一起決定")}
       ${CB ? `${sub(`${t1}加${t2}，最適合`)}<div class="chips">${CB.jobs.map(j => `<span>${j}</span>`).join("")}</div><p>${CB.jobs_why}</p>` : ""}
       ${sub(CB ? "其他也很適合的" : "具體的職業和方向")}<div class="chips">${JOBS[t1].filter(j => !(CB && CB.jobs.includes(j))).map(j => `<span>${j}</span>`).join("")}</div>
+      <p>再加上你的${t3}那一面，${JOBS[t3].slice(0, 2).join("、")}也適合你；或是在現在的工作裡，多負責「${STAGE_OF[t3][1]}」這一塊。</p>
       <p>${WORK_STYLE[lv(b5.E)]}</p>
       ${sub("你在這些場合表現最好")}<p>${R.best_scenes}</p>
       ${sub("可以怎麼做")}${pts(R.career.practice)}
@@ -822,16 +948,19 @@ function renderResult() {
 
     <section class="sheet">
       ${head("如果你要經營個人品牌", "怎麼呈現你自己")}
-      <p class="hook">${R.ip.positioning}</p>
-      ${CB ? `<p><b>你的組合最適合這樣做：</b>${CB.ip}</p>` : ""}
+      ${sub("你的個人品牌配方")}
+      <p class="hook">${formula}</p>
+      <p>${market}</p>
+      <p class="note">素材來自你的${t1}、說話方式來自你的${t2}、最打動誰來自你的${t3}。</p>
+      ${CB ? `${sub("具體可以這樣做")}<p>${CB.ip}</p>` : ""}
+      ${sub(`${t1}的人設和可以賣的東西`)}<p><b>${R.ip.positioning}</b></p>
       <p>${R.ip.core}</p>
       <dl class="kv">
-        <div><dt>要不要露臉</dt><dd>${FILM_MOD[0].t[lv(b5.E)]}。</dd></div>
+        ${FILM_MOD.map(m => `<div><dt>${m.label}</dt><dd>${m.t[lv(b5[m.key])]}。</dd></div>`).join("")}
         <div><dt>適合的內容</dt><dd>${FILM[t1].types.map(([n, ex]) => `${n}（例如「${ex}」）`).join("、")}；偶爾加一點${t2}的「${FILM[t2].types[0][0]}」。</dd></div>
         <div><dt>畫面和風格</dt><dd>${FILM[t1].shoot}。</dd></div>
         <div><dt>說話的感覺</dt><dd>多用「${PLAN[t1].say.join("」「")}」這類說法，避開${PLAN[t1].no.join("、")}。</dd></div>
         <div><dt>開頭可以這樣講</dt><dd>「${FILM[t1].hooks[0]}」</dd></div>
-        <div><dt>會吸引到的人</dt><dd>${PLAN[t1].aud}。</dd></div>
       </dl>
       ${sub("可以怎麼做")}${pts(R.ip.practice)}
     </section>
@@ -841,20 +970,36 @@ function renderResult() {
       <p class="hook">${CB.next}</p>
     </section>` : ""}` : ""}
 
+    <section class="sheet">
+      ${head("12 型圖鑑", "依你的分數排序，點開看")}
+      ${ranked.map(a => REPORT[a] ? `<details class="dex"><summary>${mascot(a, { size: 34, level: raw[a] / top })}<b>${a}</b><span class="note">${raw[a]} 分${top3.includes(a) ? "・你的前三名" : ""}</span></summary>
+        <p>${ARCH[a].line}</p>
+        <div class="chips">${REPORT[a].keywords.map(k => `<span>${k}</span>`).join("")}</div>
+        <dl class="kv">
+          <div><dt>在一件事裡</dt><dd>負責${STAGES[stageOf(a)]}：${STAGE_OF[a][1]}。</dd></div>
+          <div><dt>做得到的事</dt><dd>${REPORT[a].strengths.map(x => x.title).join("；")}</dd></div>
+          <div><dt>適合的工作</dt><dd>${JOBS[a].join("、")}</dd></div>
+          <div><dt>代表人物</dt><dd>${REPORT[a].people.join("｜")}</dd></div>
+          <div><dt>代表品牌</dt><dd>${REPORT[a].brands.join("｜")}</dd></div>
+          <div><dt>容易搞混</dt><dd>跟${ARCH_DIFF[a][0]}：${ARCH_DIFF[a][1]}</dd></div>
+        </dl></details>` : "").join("")}
+      <p class="note">代表人物和品牌是「常被聯想」，不是官方認證。</p>
+    </section>
+
     <section class="sheet method">
       <div class="section-title"><h2 style="font-size:18px">這份報告怎麼來的</h2><span class="stamp">測試版</span></div>
-      <p>12 種人的分類來自品牌原型理論（Mark &amp; Pearson, 2001）。48 題由 Winho 自建，每型 4 題，從不 1 分到總是 5 分。第二關 10 題取自公有領域的 IPIP 人格題庫，用來描述你在人群裡的樣子。計分版本 ${VERSION}。</p>
+      <p>12 種人的分類來自品牌原型理論（Mark &amp; Pearson, 2001）。48 題由 Winho 自建，每型 4 題，從不 1 分到總是 5 分。另外 10 題取自公有領域的 IPIP 五大人格題庫，用來描述你在人群裡的樣子，也拿來調整工作和個人品牌的建議。百分比是前三名分數的比例；「分數高低分明或平均」是看 12 型分數的標準差。計分版本 ${VERSION}。</p>
       ${c ? `<p>傳統說法參考（不影響上面的分數）：太陽星座 ${c.sign}｜生命靈數 ${c.life}${c.stars ? `｜紫微命宮 ${c.stars.join("、")}` : ""}${c.hex ? `｜本命卦 ${c.hex}` : ""}</p>` : ""}
       <p>這不是心理診斷，也不適合拿來做招募或升遷判斷。</p>
       <p>作答品質：${attnOk ? "小檢查通過" : "小檢查沒通過（測試版照樣顯示結果，正式版這筆不進統計）"}。</p>
       <p id="saveNote"></p>
     </section>
 
-    <div class="row"><button class="btn" id="again">重新測驗</button><button class="btn ghost" id="redo">換一組隨機作答</button></div>`;
+    <div class="row"><button class="btn" id="again">重新測驗</button><button class="btn ghost" id="redo" ${location.hash === "#test" ? "" : "hidden"}>換一組隨機作答</button></div>`;
 
-  document.getElementById("again").onclick = () => { S.b5 = {}; S.attn = {}; S.arch = {}; S.idx = 0; S.saved = false; S.view = "intro"; render(); };
+  document.getElementById("again").onclick = () => { clearAnswers(); S.view = "intro"; render(); };
   saveResult({ b5, raw, top3, c, attnOk, highShare });
-  document.getElementById("redo").onclick = () => { randomAnswers(); render(); };
+  document.getElementById("redo").onclick = () => { clearAnswers(); randomAnswers(); render(); };
 }
 
 // ---------- 匿名統計：只在公開網站上、有勾同意、不是隨機作答時，送出一筆 ----------

@@ -449,7 +449,8 @@ const OCC = [
   ["活動或展覽製作", "AE", "會展、娛樂", "從企劃到現場執行，把一場活動辦起來"], ["運動與健身產業", "RS", "運動、健康", "帶人訓練身體，示範也陪伴"],
 ];
 // 職業興趣分數：原型分數高於平均的部分，加上五大人格的修正（Larson 等 2002 的統合分析：外向↔企業／助人、開放↔創意／研究、親和↔助人、盡責↔事務）
-function careerFit(raw, b5) {
+// avoid：前三型自己的工作清單，這些不會出現在「比較耗你的工作」（評審 2026-11-23：同一份報告不能又說適合又說耗你）
+function careerFit(raw, b5, avoid) {
   const v = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
   const mean = Object.values(raw).reduce((x, y) => x + y, 0) / 12;
   for (const a in raw) { const w = Math.max(0, raw[a] - mean); for (const k in ARCH_RIASEC[a]) v[k] += w * ARCH_RIASEC[a][k]; }
@@ -459,7 +460,8 @@ function careerFit(raw, b5) {
   v.E += z("E") * 1.5; v.S += z("E") * .5 + z("A"); v.A += z("O"); v.I += z("O"); v.C += z("C") * 1.5;
   const code = Object.keys(v).sort((x, y) => v[y] - v[x]);
   const scored = OCC.map(([n, c, ind, d]) => ({ n, c, ind, d, s: v[c[0]] * 2 + v[c[1]] })).sort((x, y) => y.s - x.s);
-  return { v, code, best: scored.slice(0, 6), worst: scored.slice(-3).reverse() };
+  const best = scored.slice(0, 6);
+  return { v, code, best, worst: scored.slice(6).reverse().filter(o => !(avoid || []).some(j => j.includes(o.n) || o.n.includes(j))).slice(0, 3) };
 }
 
 // 依外向程度補一句：[偏安靜, 中間, 偏外向]
@@ -625,7 +627,10 @@ function scoreArchetypes(ans) {
   const pct = Object.fromEntries(ARCH_ORDER.map(a => [a, raw[a] / total * 100]));
   // 同分時先比選「總是」的題數，再比選「經常」以上的題數。
   const count = (a, min) => ITEMS.filter(q => q.arch === a && (ans[q.id] || 0) >= min).length;
-  const ranked = [...ARCH_ORDER].sort((x, y) => raw[y] - raw[x] || count(y, 5) - count(x, 5) || count(y, 4) - count(x, 4));
+  // 還是同分：用這份作答算一個固定的亂數排（同一份作答結果不變，但不會老是同一型排前面）
+  const seed = ITEMS.reduce((h, q) => (h * 31 + (ans[q.id] || 0)) >>> 0, 7);
+  const tie = a => ((seed ^ (ARCH_ORDER.indexOf(a) + 1) * 2654435761) >>> 0) % 1000;
+  const ranked = [...ARCH_ORDER].sort((x, y) => raw[y] - raw[x] || count(y, 5) - count(x, 5) || count(y, 4) - count(x, 4) || tie(y) - tie(x));
   return { raw, pct, ranked };
 }
 
@@ -676,7 +681,11 @@ function cultureLine(kind, name, top3, extra = "") {
 }
 
 // ---------- 流程 ----------
-const S = window.claude?.hot?.data?.S ?? {
+// 作答暫存在這支手機的瀏覽器，重新整理不會不見（評審 2026-11-23）；不會傳出去
+const STORE_KEY = "szs-quiz-progress";
+const loadLocal = () => { try { const v = JSON.parse(localStorage.getItem(STORE_KEY)); return v && v.view === "quiz" ? v : null; } catch { return null; } };
+const saveLocal = () => { try { S.view === "quiz" ? localStorage.setItem(STORE_KEY, JSON.stringify(S)) : localStorage.removeItem(STORE_KEY); } catch {} };
+const S = window.claude?.hot?.data?.S ?? loadLocal() ?? {
   view: "intro", profile: { surname: "", title: "", birth: "", hour: "", consent: false },
   idx: 0, b5: {}, attn: {}, arch: {},
 };
@@ -700,7 +709,7 @@ const QUESTION_COUNT = STEPS.length;
 
 const app = document.getElementById("app");
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-function render() { ({ intro: renderIntro, quiz: renderQuiz, result: renderResult })[S.view](); window.scrollTo({ top: 0 }); }
+function render() { saveLocal(); ({ intro: renderIntro, quiz: renderQuiz, result: renderResult })[S.view](); window.scrollTo({ top: 0 }); }
 
 const HOURS = ["早子時 00–01", "丑時 01–03", "寅時 03–05", "卯時 05–07", "辰時 07–09", "巳時 09–11", "午時 11–13", "未時 13–15", "申時 15–17", "酉時 17–19", "戌時 19–21", "亥時 21–23", "晚子時 23–24"];
 
@@ -733,7 +742,7 @@ function renderIntro() {
       </ol>
     </section>
     <form class="sheet" id="f" novalidate>
-      <div class="field"><label for="birth">出生年月日</label><input id="birth" type="date" min="1920-01-01" max="2025-12-31" value="${esc(p.birth)}" required></div>
+      <div class="field"><label for="birth">出生年月日</label><input id="birth" type="date" min="1920-01-01" max="${new Date().toISOString().slice(0, 10)}" value="${esc(p.birth)}" required></div>
       <div class="two">
         <div class="field"><label for="surname">姓氏（選填）</label><input id="surname" maxlength="4" placeholder="例：王" value="${esc(p.surname)}" autocomplete="off"></div>
         <div class="field"><span class="label" id="tl">稱呼（選填）</span><div class="seg" role="group" aria-labelledby="tl">
@@ -742,14 +751,14 @@ function renderIntro() {
       </div>
       <div class="field"><label for="hour">出生時辰（選填）</label>
         <select id="hour"><option value="">不確定</option>${HOURS.map((h, i) => `<option value="${i}" ${String(p.hour) === String(i) ? "selected" : ""}>${h}</option>`).join("")}</select></div>
-      <label class="check"><input type="checkbox" id="consent" ${p.consent ? "checked" : ""}><span>同意以匿名方式把作答用於改進題目與統計。不勾也能看結果。<br><span class="note">姓氏只用來稱呼你，不會存；生日也不會存。</span></span></label>
+      <label class="check"><input type="checkbox" id="consent" ${p.consent ? "checked" : ""}><span>同意以匿名方式把作答用於改進題目與統計。不勾也能看結果。<br><span class="note">勾了會存：你的作答和分數、年齡區間、稱呼、星座、生命靈數、紫微主星。不會存：姓氏、完整生日、出生時辰。不勾就什麼都不存。</span></span></label>
       <p class="error" id="err" hidden>請先填出生年月日。</p>
       <div class="row"><button class="btn" type="submit">開始測驗</button><button class="btn ghost" type="button" id="demo" ${location.hash === "#test" ? "" : "hidden"}>測試用：隨機作答直接看結果</button></div>
     </form>`;
   const f = document.getElementById("f");
   f.querySelectorAll("[data-title]").forEach(b => b.onclick = () => { p.title = b.dataset.title; f.querySelectorAll("[data-title]").forEach(x => x.setAttribute("aria-pressed", x === b)); });
   const read = () => { p.birth = f.birth.value; p.surname = f.surname.value.trim(); p.hour = f.hour.value; p.consent = f.consent.checked; };
-  f.onsubmit = e => { e.preventDefault(); read(); if (!p.birth) { document.getElementById("err").hidden = false; f.birth.focus(); return; } clearAnswers(); S.view = "quiz"; render(); };
+  f.onsubmit = e => { e.preventDefault(); read(); const age = ageOf(p.birth); if (!p.birth || !(age >= 6 && age <= 110)) { const er = document.getElementById("err"); er.textContent = p.birth ? "生日好像打錯了，再檢查一下年份。" : "請先填出生年月日。"; er.hidden = false; f.birth.focus(); return; } clearAnswers(); S.view = "quiz"; render(); };
   document.getElementById("demo").onclick = () => {
     read(); if (!p.birth) p.birth = "1995-08-16";
     clearAnswers(); randomAnswers();
@@ -786,7 +795,10 @@ function renderQuiz() {
     });
   }
   const back = document.getElementById("back"); if (back) back.onclick = () => { S.idx = Math.max(0, S.idx - 1); render(); };
-  document.getElementById("quit").onclick = () => { S.view = "intro"; render(); };
+  document.getElementById("quit").onclick = () => {
+    if (answeredCount() && !confirm("回到開頭的話，已經作答的題目會清掉，要重新作答。確定嗎？")) return;
+    clearAnswers(); S.view = "intro"; render();
+  };
 }
 function mark(b, sel) { app.querySelectorAll(sel).forEach(x => x.setAttribute("aria-pressed", x === b)); }
 function next() { if (S.idx < STEPS.length - 1) { S.idx++; render(); } else { S.view = "result"; render(); } }
@@ -804,6 +816,9 @@ function renderResult() {
   const c = p.birth ? cultureLayer(p.birth, p.hour === "" ? null : +p.hour, p.title) : null;
   const attnOk = ATTN.every((a, i) => S.attn[i] === a.answer);
   const maxRaw = Math.max(...Object.values(raw));
+  const minRaw = Math.min(...Object.values(raw));
+  // 作答很平均：分不出明顯傾向就照實說（評審 2026-11-23）
+  const flat = maxRaw - minRaw <= 3;
   const top = PER_ARCH * 5;
   const lv = v => (v < 40 ? 0 : v > 60 ? 2 : 1);
   const traitVals = TRAITS.map(t => ({ ...t, v: Math.round(b5[t.key]) }));
@@ -823,7 +838,8 @@ function renderResult() {
   const sh1 = Math.round(raw[t1] / sum3 * 100), sh2 = Math.round(raw[t2] / sum3 * 100);
   const shares = { [t1]: sh1, [t2]: sh2, [t3]: 100 - sh1 - sh2 };
   const g12 = raw[t1] - raw[t2], g23 = raw[t2] - raw[t3];
-  const shape = g12 <= 1 && g23 <= 1 ? ["三面平均型", `${t1}、${t2}、${t3}在你身上差不多強。你會看場合切換，很難只用一個標籤形容你，下面三型的說明都值得看。`]
+  const shape = flat ? ["還看不出主調", "你的分數很平均，這次分不出哪一型特別強。"]
+    : g12 <= 1 && g23 <= 1 ? ["三面平均型", `${t1}、${t2}、${t3}在你身上差不多強。你會看場合切換，很難只用一個標籤形容你，下面三型的說明都值得看。`]
     : g12 <= 1 ? ["雙主調型", `${t1}和${t2}一樣強，常常同時出現；${t3}是你在特定場合才會拿出來的一面。`]
     : g12 >= 4 ? ["鮮明主調型", `${t1}比其他兩面明顯很多，別人很容易一眼看出你是什麼樣的人。`]
     : ["一主兩副型", `${t1}帶頭，${t2}和${t3}在不同場合出來幫忙。`];
@@ -832,7 +848,12 @@ function renderResult() {
   const sd = Math.sqrt(vals.reduce((x, y) => x + (y - mean) ** 2, 0) / vals.length);
   const spread = sd < 2 ? "你 12 型的分數彼此很接近，代表你適應力強、什麼角色都能演一點；也因為這樣，任何單一類型的描述對你都只說中一部分。"
     : sd > 3.5 ? "你 12 型的分數高低很分明，喜歡和不喜歡的事很清楚，所以下面的描述會比較貼近你。" : "";
-  const bottom = ranked[ranked.length - 1];
+  // 最不像：最低分可能好幾型同分，或其實也不低
+  const bottoms = ranked.filter(a => raw[a] === minRaw);
+  const bottomLine = minRaw >= 12 ? `你 12 型的分數都在 ${minRaw} 分以上，沒有特別不像的類型，每一型你都有一些。`
+    : bottoms.length > 3 ? `你分數最低的有 ${bottoms.length} 型（都是 ${minRaw} 分），沒有單獨一型特別不像你。`
+    : `你最不像的是<b>${bottoms.join("、")}</b>（${minRaw} 分）：${bottoms.length === 1 ? ARCH[bottoms[0]].line : ""}這通常不是你會主動做的事，需要的時候交給這型的人。`;
+
   // 你在一件事裡負責哪一段
   const stageOf = a => STAGE_OF[a][0];
   const covered = new Set(top3.map(stageOf));
@@ -846,7 +867,7 @@ function renderResult() {
   }
   if (b5.C < 40 && !closer) flow += "你做事偏隨性，長期的事記得用行事曆或找一個夥伴幫你盯進度。";
   // 個人品牌配方
-  const fit = careerFit(raw, b5);
+  const fit = careerFit(raw, b5, top3.flatMap(a => JOBS[a]));
   // 這份工作用得到你前三名的哪幾面（看原型對應的職業興趣有沒有對上職位代碼）
   // 每個職位配一個前三名裡最對得上的面向；同一面用過就往後排，讓理由不重複
   const fitOf = (o, a) => ((ARCH_RIASEC[a][o.c[0]] || 0) * 2 + (ARCH_RIASEC[a][o.c[1]] || 0)) * raw[a];
@@ -873,20 +894,21 @@ function renderResult() {
   const circle = `<svg class="circle" viewBox="0 0 100 108" preserveAspectRatio="none"><path d="M50 4 C80 2 96 30 94 60 C92 92 70 106 46 104 C20 102 4 80 6 50 C8 22 26 6 56 6" fill="none" stroke="#E3301C" stroke-width="3" stroke-linecap="round"/></svg>`;
   const podium = [[t2, 2, 70], [t1, 1, 100], [t3, 3, 52]];
   const ties = [];
-  for (let i = 0; i < 3; i++) if (raw[ranked[i]] === raw[ranked[i + 1]]) ties.push(`${ranked[i]}和${ranked[i + 1]}同分，名次先比選「總是」的題數`);
+  for (let i = 0; i < 3; i++) if (raw[ranked[i]] === raw[ranked[i + 1]]) ties.push(`${ranked[i]}和${ranked[i + 1]}同分（並列），名次先比選「總是」的題數，再一樣就隨機排`);
 
   app.innerHTML = `
     <section class="hero">
       <div class="bob">${mascot(t1, { size: 140, level: .85 })}</div>
       <div style="display:grid;gap:8px;min-width:0">
         <span class="eyebrow">實驗結果</span>
-        <h1>${p.surname ? `${who}，你是` : "你是"}<br><span class="type">${t1}型</span>小試</h1>
+        <h1>${p.surname ? `${who}，你` : "你"}${flat ? "比較接近" : raw[t1] === raw[t2] ? "同時是" : "是"}<br><span class="type">${raw[t1] === raw[t2] && !flat ? `${t1}＋${t2}` : t1}型</span>小試</h1>
         <p>${ARCH[t1].line}</p>
         <p class="note">你的配方：${top3.map(a => `${a} ${shares[a]}%`).join("｜")}</p>
       </div>
     </section>
 
-    ${highShare >= 0.7 ? `<p class="culture" style="color:var(--ink)">你有 ${Math.round(highShare * 100)}% 的題目選了「經常」或「總是」，各型分數差距比較小，結果先當參考。想看得更準，可以重測一次，只在真的非常像你時才選「總是」。</p>` : ""}
+    ${flat ? `<p class="culture" style="color:var(--ink)">你 12 型的分數最高和最低只差 ${maxRaw - minRaw} 分，這次作答分不出明顯的傾向。下面以分數稍高的幾型來寫，請當成參考；想看得更準，可以重測一次，像你的就大膽選「總是」，不像的選「很少」。</p>` : ""}
+    ${!flat && highShare >= 0.7 ? `<p class="culture" style="color:var(--ink)">你有 ${Math.round(highShare * 100)}% 的題目選了「經常」或「總是」，各型分數差距比較小，結果先當參考。想看得更準，可以重測一次，只在真的非常像你時才選「總是」。</p>` : ""}
 
     <section class="sheet">
       ${head("你最像的三種人", "分數最高的三型")}
@@ -894,7 +916,7 @@ function renderResult() {
       <div class="mix">${top3.map(a => `<div><span>${a}</span><i style="width:${shares[a]}%;background:${ARCH[a].color}"></i><b>${shares[a]}%</b></div>`).join("")}</div>
       <p><b>你是「${shape[0]}」</b>：${shape[1]}</p>
       ${spread ? `<p>${spread}</p>` : ""}
-      <p>你最不像的是<b>${bottom}</b>（${raw[bottom]} 分）：${ARCH[bottom].line}這通常不是你會主動做的事，需要的時候交給這型的人。</p>
+      <p>${bottomLine}</p>
       <p class="note">百分比是前三名分數的比例。${ties.length ? `${ties.join("；")}。` : ""}</p>
     </section>
 
@@ -1078,14 +1100,18 @@ function renderResult() {
 }
 
 // ---------- 匿名統計：只在公開網站上、有勾同意、不是隨機作答時，送出一筆 ----------
-// 不送姓氏、生日、時辰；只送作答、算出來的分數和文化層結果。
+// 不送姓氏、生日、時辰；只送作答、分數、年齡區間、稱呼、星座、靈數、紫微主星（同意文字要跟這裡一致）。
 const CAN_SAVE = location.protocol === "https:" && !location.hostname.includes("claude");
 const SUPABASE_URL = "https://wgizjbhynofqcldsjswr.supabase.co";
 const SUPABASE_KEY = "sb_publishable_J03tKmAmn0XNJPPitp_U9Q_Fj-NS-lI";
+function ageOf(birth) {
+  const [y, m, d] = String(birth).split("-").map(Number); if (!y) return NaN;
+  const t = new Date(); return t.getFullYear() - y - (t.getMonth() + 1 < m || (t.getMonth() + 1 === m && t.getDate() < d) ? 1 : 0);
+}
+// 2026-11-23 起：區間改成 <18、18-29、30-39…，才分得出未成年
 function ageBand(birth) {
-  const y = +String(birth).slice(0, 4); if (!y) return "";
-  const age = new Date().getFullYear() - y;
-  return age < 20 ? "<20" : age >= 60 ? "60+" : `${Math.floor(age / 10) * 10}-${Math.floor(age / 10) * 10 + 9}`;
+  const age = ageOf(birth); if (!(age >= 0)) return "";
+  return age < 18 ? "<18" : age < 30 ? "18-29" : age >= 60 ? "60+" : `${Math.floor(age / 10) * 10}-${Math.floor(age / 10) * 10 + 9}`;
 }
 async function saveResult({ b5, raw, top3, c, attnOk, highShare }) {
   const note = document.getElementById("saveNote");
@@ -1099,7 +1125,7 @@ async function saveResult({ b5, raw, top3, c, attnOk, highShare }) {
     b5s: Object.fromEntries(Object.entries(b5).map(([k, v]) => [k, Math.round(v)])),
     attnOk, highShare: Math.round(highShare * 100) / 100,
     age: ageBand(S.profile.birth), title: S.profile.title || "",
-    sign: c?.sign || "", life: c?.life || null, star: c?.stars?.[0] || "", hex: c?.hex || "",
+    sign: c?.sign || "", life: c?.life || null, star: c?.stars?.[0] || "",
   };
   try {
     // Supabase quiz_results：公開金鑰只能新增，不能讀（見 RLS 設定）

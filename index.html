@@ -150,6 +150,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .label-sm { font-weight: 700; font-size: 14px; }
 .mix { display: grid; gap: 8px; }
 .mix > div { display: grid; grid-template-columns: 4em 1fr 3em; gap: 8px; align-items: center; }
+.mix > div:not(.on) { opacity: .6; }
+.mix .dv { position: relative; height: 16px; border-left: 0; background: linear-gradient(var(--ink), var(--ink)) 50% 0 / 2px 100% no-repeat; }
+.mix .dv i { position: absolute; top: 0; height: 16px; }
+.pt .fit { margin-left: 8px; font-size: 12px; font-weight: 700; color: var(--red); }
+.scale > u { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); opacity: .35; transform: translateX(-1px); }
 .mix i { display: block; height: 16px; border: 2px solid var(--ink); border-radius: 4px; }
 .mix b { font-family: var(--font-num); text-align: right; }
 .side-top { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center; }
@@ -184,7 +189,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 
 <script>
 // ---------- 資料（草稿，來源見 09-人格分析師/輸出/v0.2草稿/） ----------
-const VERSION = "2.8-draft-arch48-ipip10";
+const VERSION = "2.9-centered-onet";
 
 const IPIP = `1|E|+|聚會時，我通常是帶動氣氛的那個人。
 2|A|-|我不太會去關心別人。
@@ -448,20 +453,44 @@ const OCC = [
   ["行政管理", "CS", "各行業", "處理文件、採購、庶務，讓辦公室順順運作"], ["工程或現場技術", "RI", "製造、營建", "在現場動手處理設備和工程問題"], ["餐飲或旅宿經營", "ER", "服務業", "顧現場、帶員工，讓每位客人都滿意"],
   ["活動或展覽製作", "AE", "會展、娛樂", "從企劃到現場執行，把一場活動辦起來"], ["運動與健身產業", "RS", "運動、健康", "帶人訓練身體，示範也陪伴"],
 ];
-// 職業興趣分數：原型分數高於平均的部分，加上五大人格的修正（Larson 等 2002 的統合分析：外向↔企業／助人、開放↔創意／研究、親和↔助人、盡責↔事務）
+// 每個職位的官方六型興趣分數（R I A S E C，1–7 分）：O*NET 31.0 Database, U.S. Department of Labor, Employment and Training Administration（CC BY 4.0）
+// 對到兩、三個 O*NET 職業的取平均（對照見 知識庫/03-職業興趣與適配.md 第 5 節）
+const OCC_PROFILE = {"管理顧問":[1.37,5.44,1.63,2.82,4.81,6.05],"品牌或行銷顧問":[1.04,3.75,2.5,2.65,6.26,4.66],"業務開發（BD）":[1.28,1.8,1.41,3.56,6.87,5.3],"業務主管":[1.49,1.67,1.36,3.37,7.0,5.53],"產品經理":[1.8,3.75,1.9,2.61,6.0,5.32],"創業或新事業負責人":[1.73,2.71,1.73,3.46,6.98,5.15],"專案經理":[1.48,2.75,1.57,3.32,6.3,5.55],"營運管理":[2.2,2.37,1.29,3.38,7.0,5.34],"公關與企業溝通":[1.0,2.53,4.17,4.06,6.41,3.92],"行銷企劃":[1.08,4.6,2.56,2.47,5.52,4.62],"廣告創意":[1.98,2.97,6.84,2.87,5.0,3.47],"品牌或產品設計":[4.0,3.46,6.27,2.0,3.57,3.7],"影像或內容製作":[2.63,2.08,5.88,2.54,4.43,3.66],"編輯或出版":[1.03,2.9,5.39,2.56,4.13,4.68],"記者或調查報導":[1.47,4.16,5.09,2.8,3.95,3.64],"研究或數據分析":[2.16,6.78,2.19,1.69,1.77,5.71],"投資研究或財務分析":[1.0,5.06,1.78,2.25,5.09,5.54],"軟體或技術工程":[3.61,6.05,2.37,1.81,1.87,5.62],"使用者研究（UX）":[2.94,5.73,3.15,2.23,2.91,4.68],"醫師或藥師":[3.62,6.24,1.46,5.48,2.36,4.09],"心理諮商":[1.31,4.42,3.06,6.79,2.96,3.43],"護理或醫療照護":[3.46,4.71,1.34,5.57,2.38,4.75],"教師或企業講師":[2.38,3.61,3.48,6.32,3.29,3.68],"人資或人才發展":[1.15,2.42,1.43,3.83,6.33,5.53],"客戶成功經理":[1.52,1.78,1.23,3.76,5.91,5.7],"社工或非營利管理":[1.35,2.75,2.67,6.14,4.96,3.89],"保險或理財顧問":[1.0,2.76,1.39,3.89,5.9,5.54],"財務會計":[1.14,3.57,1.08,2.13,3.87,7.0],"法務或合規":[1.81,3.72,1.7,3.23,4.79,5.46],"品質或流程管理":[4.27,4.55,1.43,1.72,4.19,5.38],"行政管理":[1.37,2.03,1.23,3.84,5.99,6.34],"工程或現場技術":[6.63,4.19,1.6,1.09,1.12,4.54],"餐飲或旅宿經營":[3.42,1.53,1.53,3.92,6.09,5.14],"活動或展覽製作":[1.0,1.56,2.49,4.56,7.0,4.96],"運動與健身產業":[5.23,2.71,2.4,5.62,3.51,2.98]};
+const RIASEC_KEYS = ["R", "I", "A", "S", "E", "C"];
+// 欄位總和：每種職業興趣分到的原型權重不一樣多，先拉平，免得 A、S、E 天生分數高、R 和 C 永遠排最後
+const RIASEC_COLSUM = Object.fromEntries(RIASEC_KEYS.map(k => [k, Object.values(ARCH_RIASEC).reduce((x, w) => x + (w[k] || 0), 0)]));
+// 五大人格 → 職業興趣：Larson 等 2002 統合分析裡明顯的相關（盡責—事務太弱，不放）
+const B5_RIASEC = { O: { A: .48, I: .28 }, E: { E: .41, S: .31 }, A: { S: .19 } };
+// 配對門檻借 O*NET Interest Profiler 的（滿 300 人後改用本站作答者的分布）
+const FIT_CUT = [[.729, "最適合"], [.608, "適合"], [.426, "還可以"]];
+// 皮爾森輪廓相關：比的是六型高低的形狀，不是分數大小；任一邊完全平就回傳 null
+function profileR(x, y) {
+  const m = a => a.reduce((p, q) => p + q, 0) / a.length;
+  const mx = m(x), my = m(y);
+  const sx = Math.sqrt(m(x.map(v => (v - mx) ** 2))), sy = Math.sqrt(m(y.map(v => (v - my) ** 2)));
+  if (sx < 1e-9 || sy < 1e-9) return null;
+  return m(x.map((v, i) => (v - mx) * (y[i] - my))) / (sx * sy);
+}
+// cen：每型扣掉自己平均後的分數；b5z：五大人格的 z
 // avoid：前三型自己的工作清單，這些不會出現在「比較耗你的工作」（評審 2026-11-23：同一份報告不能又說適合又說耗你）
-function careerFit(raw, b5, avoid) {
-  const v = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
-  const mean = Object.values(raw).reduce((x, y) => x + y, 0) / 12;
-  for (const a in raw) { const w = Math.max(0, raw[a] - mean); for (const k in ARCH_RIASEC[a]) v[k] += w * ARCH_RIASEC[a][k]; }
-  const tot = Object.values(v).reduce((x, y) => x + y, 0) || 1;
-  for (const k in v) v[k] = v[k] / tot * 10;
-  const z = t => (b5[t] - 50) / 50;
-  v.E += z("E") * 1.5; v.S += z("E") * .5 + z("A"); v.A += z("O"); v.I += z("O"); v.C += z("C") * 1.5;
-  const code = Object.keys(v).sort((x, y) => v[y] - v[x]);
-  const scored = OCC.map(([n, c, ind, d]) => ({ n, c, ind, d, s: v[c[0]] * 2 + v[c[1]] })).sort((x, y) => y.s - x.s);
-  const best = scored.slice(0, 6);
-  return { v, code, best, worst: scored.slice(6).reverse().filter(o => !(avoid || []).some(j => j.includes(o.n) || o.n.includes(j))).slice(0, 3) };
+function careerFit(cen, b5z, avoid) {
+  const v = Object.fromEntries(RIASEC_KEYS.map(k => [k, 0]));
+  for (const a in cen) for (const k in ARCH_RIASEC[a]) v[k] += cen[a] / ARCH_SD * ARCH_RIASEC[a][k] / RIASEC_COLSUM[k];
+  for (const t in B5_RIASEC) for (const k in B5_RIASEC[t]) v[k] += (b5z[t] || 0) * B5_RIASEC[t][k];
+  const person = RIASEC_KEYS.map(k => v[k]);
+  const code = [...RIASEC_KEYS].sort((x, y) => v[y] - v[x]);
+  const scored = OCC.map(([n, , ind, d]) => {
+    const p = OCC_PROFILE[n], r = profileR(person, p);
+    const c = RIASEC_KEYS.map((k, i) => [k, p[i]]).sort((x, y) => y[1] - x[1]).slice(0, 2).map(x => x[0]).join("");
+    return { n, c, ind, d, r, label: r == null ? null : (FIT_CUT.find(([cut]) => r >= cut) || [])[1] };
+  }).filter(o => o.r != null).sort((x, y) => y.r - x.r);
+  if (!scored.length) return { v, code, best: [], worst: [], weak: false };
+  const strong = scored.filter(o => o.label).slice(0, 6);
+  // 一個都沒過門檻：還是列最接近的 3 個，但照實說配對度不高
+  const weak = !strong.length;
+  const best = weak ? scored.slice(0, 3) : strong;
+  const worst = scored.filter(o => o.r < 0 && !best.includes(o) && !(avoid || []).some(j => j.includes(o.n) || o.n.includes(j))).slice(-3).reverse();
+  return { v, code, best, worst, weak };
 }
 
 // 依外向程度補一句：[偏安靜, 中間, 偏外向]
@@ -613,6 +642,13 @@ function mascot(key, { size = 120, level = .55, face = true } = {}) {
 }
 
 // ---------- 計分 ----------
+// 作答不到 100 人，先跟已發表的常模比（TIPI 亞裔子樣本換算成 0–100，見 知識庫/13 第 4.0 節；SD 18 是暫定）
+// 每個特質只有 2 題、誤差大，所以差到 1 個標準差才說偏高或偏低
+const B5_PRIOR = { O: { m: 68, sd: 18 }, C: { m: 69, sd: 18 }, E: { m: 52, sd: 18 }, A: { m: 69, sd: 18 }, S: { m: 61, sd: 18 } };
+const b5Z = b5 => Object.fromEntries(Object.keys(B5_PRIOR).map(t => [t, (b5[t] - B5_PRIOR[t].m) / B5_PRIOR[t].sd]));
+const b5Level = z => (z <= -1 ? 0 : z >= 1 ? 2 : 1);
+// 12 型扣掉個人平均後的分數，假設 SD 3.4（模擬推估，滿 100 人換實測）
+const ARCH_SD = 3.4;
 function scoreBigFive(ans) {
   const raw = { O: 0, C: 0, E: 0, A: 0, N: 0 }, k = IPIP_USED.length / 5;
   IPIP_USED.forEach(q => { const v = ans[q.n]; raw[q.trait] += q.rev ? 6 - v : v; });
@@ -631,7 +667,10 @@ function scoreArchetypes(ans) {
   const seed = ITEMS.reduce((h, q) => (h * 31 + (ans[q.id] || 0)) >>> 0, 7);
   const tie = a => ((seed ^ (ARCH_ORDER.indexOf(a) + 1) * 2654435761) >>> 0) % 1000;
   const ranked = [...ARCH_ORDER].sort((x, y) => raw[y] - raw[x] || count(y, 5) - count(x, 5) || count(y, 4) - count(x, 4) || tie(y) - tie(x));
-  return { raw, pct, ranked };
+  // 跟自己比：每型分數減掉「4 題 × 你 48 題的平均」，正的代表這一面比你平常突出
+  const personMean = ITEMS.reduce((x, q) => x + (ans[q.id] || 0), 0) / ITEMS.length;
+  const cen = Object.fromEntries(ARCH_ORDER.map(a => [a, raw[a] - PER_ARCH * personMean]));
+  return { raw, pct, ranked, cen, personMean };
 }
 
 // ---------- 文化層（生日當下算完就丟，只留算出來的結果） ----------
@@ -804,11 +843,12 @@ function mark(b, sel) { app.querySelectorAll(sel).forEach(x => x.setAttribute("a
 function next() { if (S.idx < STEPS.length - 1) { S.idx++; render(); } else { S.view = "result"; render(); } }
 
 // 分數說明：每型 4–20 分
-const scoreWord = v => (v >= 16 ? "很明顯" : v >= 12 ? "有這一面" : "比較少");
+const scoreWord = c => (c >= 3 ? "比你平常明顯高" : c >= 1 ? "比你平常高一點" : "跟你平常差不多");
 
 function renderResult() {
   const b5 = scoreBigFive(S.b5);
-  const { raw, ranked } = scoreArchetypes(S.arch);
+  const { raw, ranked, cen, personMean } = scoreArchetypes(S.arch);
+  const bz = b5Z(b5);
   const top3 = ranked.slice(0, 3), [t1, t2, t3] = top3;
   const R = REPORT[t1];
   const p = S.profile;
@@ -820,28 +860,29 @@ function renderResult() {
   // 作答很平均：分不出明顯傾向就照實說（評審 2026-11-23）
   const flat = maxRaw - minRaw <= 3;
   const top = PER_ARCH * 5;
-  const lv = v => (v < 40 ? 0 : v > 60 ? 2 : 1);
-  const traitVals = TRAITS.map(t => ({ ...t, v: Math.round(b5[t.key]) }));
+  const lv = t => b5Level(bz[t]);
+  const traitVals = TRAITS.map(t => ({ ...t, v: Math.round(b5[t.key]), lvl: lv(t.key) }));
 
   // 作答偏高提醒
   const archAns = ITEMS.map(q => S.arch[q.id] || 0);
   const highShare = archAns.filter(v => v >= 4).length / archAns.length;
+  // 每題都選一樣：照樣給報告，只提醒參考就好（Tae 2026-11-23）
+  const allSame = archAns.every(v => v === archAns[0]);
   // 證據：主調裡你選「經常／總是」的題目
   const pick = a => ITEMS.filter(q => q.arch === a && (S.arch[q.id] || 0) >= 4).sort((x, y) => S.arch[y.id] - S.arch[x.id])[0];
   const ev1 = pick(t1), ev2 = pick(t2), ev3 = pick(t3);
   // 分數接近時直接說
   const CB = (COMBO[t1] || {})[t2];
-  const close = raw[t1] - raw[t2] <= 1 ? `你的${t1}和${t2}分數幾乎一樣，這兩面在你身上差不多強，報告以${t1}為主軸來寫。` : "";
+  const close = raw[t1] - raw[t2] <= 2 ? `你的${t1}和${t2}分數幾乎一樣，這兩面在你身上差不多強，報告以${t1}為主軸來寫。` : "";
 
-  // 前三名各佔多少（只拿前三名的分數來比）
-  const sum3 = raw[t1] + raw[t2] + raw[t3];
-  const sh1 = Math.round(raw[t1] / sum3 * 100), sh2 = Math.round(raw[t2] / sum3 * 100);
-  const shares = { [t1]: sh1, [t2]: sh2, [t3]: 100 - sh1 - sh2 };
+  // 跟你自己的平均比高多少（四捨五入到 0.5 分）
+  const above = a => { const x = Math.round(cen[a] * 2) / 2; return x > 0 ? `比你平均高 ${x} 分` : x < 0 ? `比你平均低 ${-x} 分` : "跟你平均一樣"; };
+  // 每型 4 題，第一、二名差 5 分以上才算明顯領先（測量誤差推估，見 知識庫/13 第 4.2 節）
   const g12 = raw[t1] - raw[t2], g23 = raw[t2] - raw[t3];
   const shape = flat ? ["還看不出主調", "你的分數很平均，這次分不出哪一型特別強。"]
-    : g12 <= 1 && g23 <= 1 ? ["三面平均型", `${t1}、${t2}、${t3}在你身上差不多強。你會看場合切換，很難只用一個標籤形容你，下面三型的說明都值得看。`]
-    : g12 <= 1 ? ["雙主調型", `${t1}和${t2}一樣強，常常同時出現；${t3}是你在特定場合才會拿出來的一面。`]
-    : g12 >= 4 ? ["鮮明主調型", `${t1}比其他兩面明顯很多，別人很容易一眼看出你是什麼樣的人。`]
+    : g12 <= 2 && g23 <= 2 ? ["三面平均型", `${t1}、${t2}、${t3}在你身上差不多強。你會看場合切換，很難只用一個標籤形容你，下面三型的說明都值得看。`]
+    : g12 <= 2 ? ["雙主調型", `${t1}和${t2}一樣強，常常同時出現；${t3}是你在特定場合才會拿出來的一面。`]
+    : g12 >= 5 ? ["鮮明主調型", `${t1}比其他兩面明顯很多，別人很容易一眼看出你是什麼樣的人。`]
     : ["一主兩副型", `${t1}帶頭，${t2}和${t3}在不同場合出來幫忙。`];
   // 12 型分數的分散程度（標準差）：越平均，越會看場合切換
   const vals = Object.values(raw), mean = vals.reduce((x, y) => x + y, 0) / vals.length;
@@ -859,18 +900,18 @@ function renderResult() {
   const covered = new Set(top3.map(stageOf));
   const closer = top3.find(a => [2, 4].includes(stageOf(a)));
   let flow;
-  if (stageOf(t1) <= 1 && (closer || b5.C > 60)) flow = `你不只會開頭。${closer ? `你的${closer}那一面會幫你${STAGE_OF[closer][1]}` : "你做事有條理，會把計畫排好"}，所以你的計畫完成度會比一般的${t1}高，很適合自己當案子的負責人。`;
+  if (stageOf(t1) <= 1 && (closer || lv("C") === 2)) flow = `你不只會開頭。${closer ? `你的${closer}那一面會幫你${STAGE_OF[closer][1]}` : "你做事有條理，會把計畫排好"}，所以你的計畫完成度會比一般的${t1}高，很適合自己當案子的負責人。`;
   else if (stageOf(t1) <= 1) flow = `你最強的是前段，規劃和收尾不是你的主場。最好的分工是：你負責把事情開起來，後面交給${STAGE_HELP[2]}型的人排計畫、${STAGE_HELP[4]}型的人收尾，成功率最高。`;
   else {
     const miss = [0, 1, 2, 3, 4, 5].filter(i => !covered.has(i));
     flow = `你顧不到的段落是${miss.map(i => `「${STAGES[i]}」`).join("")}。這幾段找${[...new Set(miss.slice(0, 2).map(i => STAGE_HELP[i]))].join("、")}型的人合作，你就能專心做自己最強的那段。`;
   }
-  if (b5.C < 40 && !closer) flow += "你做事偏隨性，長期的事記得用行事曆或找一個夥伴幫你盯進度。";
+  if (lv("C") === 0 && !closer) flow += "你做事偏隨性，長期的事記得用行事曆或找一個夥伴幫你盯進度。";
   // 個人品牌配方
-  const fit = careerFit(raw, b5, top3.flatMap(a => JOBS[a]));
+  const fit = careerFit(cen, bz, top3.flatMap(a => JOBS[a]));
   // 這份工作用得到你前三名的哪幾面（看原型對應的職業興趣有沒有對上職位代碼）
   // 每個職位配一個前三名裡最對得上的面向；同一面用過就往後排，讓理由不重複
-  const fitOf = (o, a) => ((ARCH_RIASEC[a][o.c[0]] || 0) * 2 + (ARCH_RIASEC[a][o.c[1]] || 0)) * raw[a];
+  const fitOf = (o, a) => ((ARCH_RIASEC[a][o.c[0]] || 0) * 2 + (ARCH_RIASEC[a][o.c[1]] || 0)) * Math.max(.5, cen[a]);
   const used = {};
   const jobWho = fit.best.map(o => {
     const c = top3.filter(a => fitOf(o, a) > 0).sort((x, y) => fitOf(o, y) / (1 + (used[y] || 0)) - fitOf(o, x) / (1 + (used[x] || 0)))[0];
@@ -903,35 +944,37 @@ function renderResult() {
         <span class="eyebrow">實驗結果</span>
         <h1>${p.surname ? `${who}，你` : "你"}${flat ? "比較接近" : raw[t1] === raw[t2] ? "同時是" : "是"}<br><span class="type">${raw[t1] === raw[t2] && !flat ? `${t1}＋${t2}` : t1}型</span>小試</h1>
         <p>${ARCH[t1].line}</p>
-        <p class="note">你的配方：${top3.map(a => `${a} ${shares[a]}%`).join("｜")}</p>
+        <p class="note">比你自己平均突出的：${top3.map(a => `${a} ${cen[a] > 0 ? "+" : ""}${Math.round(cen[a] * 2) / 2}`).join("｜")}</p>
       </div>
     </section>
 
-    ${flat ? `<p class="culture" style="color:var(--ink)">你 12 型的分數最高和最低只差 ${maxRaw - minRaw} 分，這次作答分不出明顯的傾向。下面以分數稍高的幾型來寫，請當成參考；想看得更準，可以重測一次，像你的就大膽選「總是」，不像的選「很少」。</p>` : ""}
-    ${!flat && highShare >= 0.7 ? `<p class="culture" style="color:var(--ink)">你有 ${Math.round(highShare * 100)}% 的題目選了「經常」或「總是」，各型分數差距比較小，結果先當參考。想看得更準，可以重測一次，只在真的非常像你時才選「總是」。</p>` : ""}
+    ${allSame ? `<p class="culture" style="color:var(--ink)">你每一題都選了「${FREQ[archAns[0] - 1]}」，這次的結果參考就好。想看得更準，可以找個安靜的時間再做一次。</p>` : flat ? `<p class="culture" style="color:var(--ink)">你 12 型的分數最高和最低只差 ${maxRaw - minRaw} 分，這次作答分不出明顯的傾向。下面以分數稍高的幾型來寫，請當成參考；想看得更準，可以重測一次，像你的就大膽選「總是」，不像的選「很少」。</p>` : ""}
+    ${!flat && personMean >= 4 ? `<p class="culture" style="color:var(--ink)">你整體給分偏高（48 題平均 ${personMean.toFixed(1)} 分），每一型都有不少。所以下面都是跟你自己的平均比，看哪幾面在你身上更突出。</p>` : ""}
+    ${!flat && personMean <= 2.5 ? `<p class="culture" style="color:var(--ink)">你整體給分偏保守（48 題平均 ${personMean.toFixed(1)} 分）。所以下面都是跟你自己的平均比，看哪幾面在你身上更突出。</p>` : ""}
 
     <section class="sheet">
       ${head("你最像的三種人", "分數最高的三型")}
       <div class="podium">${podium.map(([a, n, h]) => `<div class="pod"><div class="${n === 1 ? "bob" : ""}">${mascot(a, { size: n === 1 ? 84 : 64, level: raw[a] / top })}</div><b>${a}</b><div class="block" style="height:${h}px"><span>${n}</span></div></div>`).join("")}</div>
-      <div class="mix">${top3.map(a => `<div><span>${a}</span><i style="width:${shares[a]}%;background:${ARCH[a].color}"></i><b>${shares[a]}%</b></div>`).join("")}</div>
+      ${sub("哪幾面在你身上比較突出（跟你自己比）")}
+      <div class="mix">${ranked.map(a => { const w = Math.min(50, Math.abs(cen[a]) / 8 * 50); return `<div class="${top3.includes(a) ? "on" : ""}"><span>${a}</span><span class="dv"><i style="${cen[a] >= 0 ? "left:50%" : `left:${50 - w}%`};width:${w}%;background:${cen[a] >= 0 ? ARCH[a].color : "#CFC6B4"}"></i></span><b>${cen[a] > 0 ? "+" : ""}${Math.round(cen[a] * 2) / 2}</b></div>`; }).join("")}</div>
       <p><b>你是「${shape[0]}」</b>：${shape[1]}</p>
       ${spread ? `<p>${spread}</p>` : ""}
       <p>${bottomLine}</p>
-      <p class="note">百分比是前三名分數的比例。${ties.length ? `${ties.join("；")}。` : ""}</p>
+      <p class="note">中線是你 12 型的平均，往右代表這一面比你平常突出。目前作答的人還少，先跟你自己比；累積夠多人以後會改成跟大家比。${ties.length ? `${ties.join("；")}。` : ""}</p>
     </section>
 
     <section class="sheet">
       ${head("12 支試管", `每型 ${PER_ARCH}–${top} 分`)}
       <div class="rack">${ranked.map((a, i) => `<div class="tube-cell ${i < 3 ? "top" : ""}">${i < 3 ? circle : ""}${mascot(a, { size: 52, level: raw[a] / maxRaw * .9, face: i < 3 })}<span class="pct">${raw[a]}</span><span class="nm">${a}</span></div>`).join("")}</div>
-      <p class="note">怎麼看分數：16 分以上是很明顯的一面，12–15 分是你有這一面，11 分以下是比較少出現的一面。液體越滿分數越高。</p>
+      <p class="note">數字是每型的原始分數（4 題加總）。每個人給分習慣不一樣，所以分數高低要跟你自己其他型比，不要跟別人比。液體越滿分數越高。</p>
       
     </section>
 
     <section class="sheet">
       ${head("你是怎麼組成的", "三種人合起來的你")}
-      <p><b>你的主調是${t1}</b>（${raw[t1]} 分，${scoreWord(raw[t1])}）：${ARCH[t1].line}</p>
-      ${CB ? `<p><b>加上${t2}</b>（${raw[t2]} 分，${scoreWord(raw[t2])}），你是「${CB.name}」：${CB.portrait}</p>` : REPORT[t2] ? `<p><b>加上${t2}</b>（${raw[t2]} 分，${scoreWord(raw[t2])}）：${REPORT[t2].as_second}</p>` : ""}
-      ${REPORT[t3] ? `<p><b>再帶一點${t3}</b>（${raw[t3]} 分，${scoreWord(raw[t3])}）：${REPORT[t3].as_second}</p>` : ""}
+      <p><b>你的主調是${t1}</b>（${raw[t1]} 分，${scoreWord(cen[t1])}）：${ARCH[t1].line}</p>
+      ${CB ? `<p><b>加上${t2}</b>（${raw[t2]} 分，${scoreWord(cen[t2])}），你是「${CB.name}」：${CB.portrait}</p>` : REPORT[t2] ? `<p><b>加上${t2}</b>（${raw[t2]} 分，${scoreWord(cen[t2])}）：${REPORT[t2].as_second}</p>` : ""}
+      ${REPORT[t3] ? `<p><b>再帶一點${t3}</b>（${raw[t3]} 分，${scoreWord(cen[t3])}）：${REPORT[t3].as_second}</p>` : ""}
       ${close ? `<p class="note">${close}</p>` : ""}
       <ul class="list">
         ${ev1 ? `<li><span>為什麼說你是${t1}：你在「${ev1.text}」選了「${FREQ[S.arch[ev1.id] - 1]}」。</span></li>` : ""}
@@ -983,7 +1026,7 @@ function renderResult() {
     </section>
 
     ${[[t2, "你的第二面"], [t3, "你的第三面"]].map(([a, label]) => REPORT[a] ? `<section class="sheet">
-      ${head(`${label}：${a}`, `${raw[a]} 分・佔 ${shares[a]}%`)}
+      ${head(`${label}：${a}`, `${raw[a]} 分・${above(a)}`)}
       <div class="side-top">${mascot(a, { size: 64, level: raw[a] / top })}<p class="quote">「${REPORT[a].manifesto}」</p></div>
       <div class="chips">${REPORT[a].keywords.map(k => `<span>${k}</span>`).join("")}</div>
       ${sub("它在你身上的樣子")}<p>${REPORT[a].as_second}</p>
@@ -996,7 +1039,8 @@ function renderResult() {
 
     <section class="sheet">
       ${head("你在人群裡的樣子")}
-      <div class="traits">${traitVals.map(t => `<div style="display:grid;gap:4px"><div class="trait-head"><span>${t.low} ↔ ${t.high}</span></div><div class="scale"><i style="left:${t.v}%"></i></div><p style="font-size:15px">${t.t[lv(t.v)]}。</p></div>`).join("")}</div>
+      <div class="traits">${traitVals.map(t => `<div style="display:grid;gap:4px"><div class="trait-head"><span>${t.low} ↔ ${t.high}</span></div><div class="scale"><u style="left:${B5_PRIOR[t.key].m}%"></u><i style="left:${t.v}%"></i></div><p style="font-size:15px">${t.t[t.lvl]}。</p></div>`).join("")}</div>
+      <p class="note">灰色細線是已發表研究裡多數人的位置。每個特質只問了 2 題，誤差比較大，所以要離細線夠遠才說偏哪一邊。</p>
       
     </section>
 
@@ -1019,13 +1063,16 @@ function renderResult() {
 
     <section class="sheet">
       ${head("適合你的行業與職位", "職業興趣代碼")}
-      <p>依你的作答，你的職業興趣代碼是 <b>${fit.code.slice(0, 3).join("")}</b>：${fit.code.slice(0, 3).map(k => `<b>${RIASEC[k][0]}</b>（${RIASEC[k][1]}）`).join("、")}。工作內容越接近這三種，你越不容易覺得在硬撐。</p>
-      ${sub("最適合你的職位")}
-      <div class="pts">${fit.best.map((o, i) => `<div class="pt"><b>${o.n}</b><p>工作內容：${o.d}（常見行業：${o.ind}）。${jobWho[i] ? `你的${jobWho[i]}那一面${TYPE_EDGE[jobWho[i]]}，在這裡剛好用得上。` : ""}</p></div>`).join("")}</div>
-      ${sub("可能比較耗你的工作")}
+      <p>依你的作答推算，你的職業興趣代碼是 <b>${fit.code.slice(0, 3).join("")}</b>：${fit.code.slice(0, 3).map(k => `<b>${RIASEC[k][0]}</b>（${RIASEC[k][1]}）`).join("、")}。工作內容越接近這三種，你越不容易覺得在硬撐。</p>
+      ${sub(fit.weak ? "跟你最接近的職位" : "跟你最對得上的職位")}
+      ${!fit.best.length ? `<p class="note">你的興趣輪廓太平均，這次分不出比較對得上哪些職位。</p>` : ""}
+      ${fit.weak ? `<p class="note">你的興趣輪廓跟每個職位的配對度都不高，下面是相對最接近的三個，參考就好。</p>` : ""}
+      <div class="pts">${fit.best.map((o, i) => `<div class="pt"><b>${o.n}${o.label ? `<small class="fit">${o.label}</small>` : ""}</b><p>工作內容：${o.d}（常見行業：${o.ind}）。${jobWho[i] ? `你的${jobWho[i]}那一面${TYPE_EDGE[jobWho[i]]}，在這裡剛好用得上。` : ""}</p></div>`).join("")}</div>
+      ${fit.worst.length ? `${sub("可能比較耗你的工作")}
       <ul class="list warn">${fit.worst.map(o => `<li><span><b>${o.n}</b>：${o.d}。</span></li>`).join("")}</ul>
-      <p>這幾份工作每天都要大量${[...new Set(fit.worst.map(o => o.c[0]))].map(k => RIASEC[k][1]).join("，或")}，是你分數比較低的一面。不是做不到，而是會比別人累；如果現在的工作這類事情佔太多時間，這可能就是你常覺得卡的原因。</p>
-      <p>${WORK_STYLE[lv(b5.E)]}</p>
+      <p>這幾份工作每天都要大量${[...new Set(fit.worst.map(o => o.c[0]))].map(k => RIASEC[k][1]).join("，或")}，是你分數比較低的一面。不是做不到，而是會比別人累；如果現在的工作這類事情佔太多時間，這可能就是你常覺得卡的原因。</p>` : ""}
+      <p class="note">配對方法參考 O*NET Interest Profiler（美國勞工部）：比你的六種興趣高低，跟每個職位的官方興趣分數像不像。職位資料來自 O*NET 31.0 Database, U.S. Department of Labor, Employment and Training Administration（CC BY 4.0）。原型怎麼對到興趣是我們依定義推的，還沒有研究驗證。</p>
+      <p>${WORK_STYLE[lv("E")]}</p>
       ${sub("你在這些場合表現最好")}<p>${R.best_scenes}</p>
       ${sub("在現在的工作裡可以怎麼做")}${pts(R.career.practice)}
       ${R.partners ? `<p class="note">跟你最互補、適合一起做事的人：${R.partners.join("、")}型。</p>` : ""}
@@ -1068,7 +1115,7 @@ function renderResult() {
       ${sub(`${t1}的人設和可以賣的東西`)}<p><b>${R.ip.positioning}</b></p>
       <p>${R.ip.core}</p>
       <dl class="kv">
-        ${FILM_MOD.map(m => `<div><dt>${m.label}</dt><dd>${m.t[lv(b5[m.key])]}。</dd></div>`).join("")}
+        ${FILM_MOD.map(m => `<div><dt>${m.label}</dt><dd>${m.t[lv(m.key)]}。</dd></div>`).join("")}
         <div><dt>適合的內容</dt><dd>${FILM[t1].types.map(([n, ex]) => `${n}（例如「${ex}」）`).join("、")}；偶爾加一點${t2}的「${FILM[t2].types[0][0]}」。</dd></div>
         <div><dt>畫面和風格</dt><dd>${FILM[t1].shoot}。</dd></div>
         <div><dt>說話的感覺</dt><dd>多用「${PLAN[t1].say.join("」「")}」這類說法，避開${PLAN[t1].no.join("、")}。</dd></div>
@@ -1084,7 +1131,7 @@ function renderResult() {
 
     <section class="sheet method">
       <div class="section-title"><h2 style="font-size:18px">這份報告怎麼來的</h2><span class="stamp">測試版</span></div>
-      <p>12 種人的分類來自品牌原型理論（Mark &amp; Pearson, 2001）。48 題由 Winho 自建，每型 4 題，從不 1 分到總是 5 分。另外 10 題取自公有領域的 IPIP 五大人格題庫，用來描述你在人群裡的樣子，也拿來調整工作和個人品牌的建議。百分比是前三名分數的比例；「分數高低分明或平均」是看 12 型分數的標準差。職業適配用 Holland 職業興趣理論（RIASEC，美國職業資料庫 O*NET 也用這套），原型對應到職業興趣是我們依定義推的，再用五大人格和職業興趣的研究結果（Larson 等，2002）修正。</p>
+      <p>12 種人的分類來自品牌原型理論（Mark &amp; Pearson, 2001）。48 題由 Winho 自建，每型 4 題，從不 1 分到總是 5 分。另外 10 題取自公有領域的 IPIP 五大人格題庫，用來描述你在人群裡的樣子，也拿來調整工作和個人品牌的建議。12 型先扣掉你 48 題的平均，看哪幾面比你自己平常突出；第一、二名差 5 分以上才說「鮮明」，因為每型只有 4 題，差太少可能只是誤差。五大人格跟已發表的常模比，差距夠大才說偏高或偏低。職業適配用 Holland 職業興趣理論（RIASEC）：原型對應到職業興趣是我們依定義推的，再用五大人格和職業興趣的研究結果（Larson 等，2002）修正，最後跟 O*NET 每個職位的官方興趣分數比對。</p>
       <p>這份報告的目的是幫你對照現在的工作、想想什麼更適合你，不是替你決定要不要換工作。計分版本 ${VERSION}。</p>
       ${c ? `<p>傳統說法參考（不影響上面的分數）：太陽星座 ${c.sign}｜生命靈數 ${c.life}${c.stars ? `｜紫微命宮 ${c.stars.join("、")}` : ""}${c.hex ? `｜本命卦 ${c.hex}` : ""}</p>` : ""}
       <p>這不是心理診斷，也不適合拿來做招募或升遷判斷。</p>

@@ -189,7 +189,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 
 <script>
 // ---------- 資料（草稿，來源見 09-人格分析師/輸出/v0.2草稿/） ----------
-const VERSION = "2.9-centered-onet";
+const VERSION = "2.10-namemask";
 
 const IPIP = `1|E|+|聚會時，我通常是帶動氣氛的那個人。
 2|A|-|我不太會去關心別人。
@@ -725,7 +725,7 @@ const STORE_KEY = "szs-quiz-progress";
 const loadLocal = () => { try { const v = JSON.parse(localStorage.getItem(STORE_KEY)); return v && v.view === "quiz" ? v : null; } catch { return null; } };
 const saveLocal = () => { try { S.view === "quiz" ? localStorage.setItem(STORE_KEY, JSON.stringify(S)) : localStorage.removeItem(STORE_KEY); } catch {} };
 const S = window.claude?.hot?.data?.S ?? loadLocal() ?? {
-  view: "intro", profile: { surname: "", title: "", birth: "", hour: "", consent: false },
+  view: "intro", profile: { name: "", surname: "", title: "", birth: "", hour: "", consent: false },
   idx: 0, b5: {}, attn: {}, arch: {},
 };
 window.claude?.hot?.snapshot?.(() => ({ S }));
@@ -783,20 +783,20 @@ function renderIntro() {
     <form class="sheet" id="f" novalidate>
       <div class="field"><label for="birth">出生年月日</label><input id="birth" type="date" min="1920-01-01" max="${new Date().toISOString().slice(0, 10)}" value="${esc(p.birth)}" required></div>
       <div class="two">
-        <div class="field"><label for="surname">姓氏（選填）</label><input id="surname" maxlength="4" placeholder="例：王" value="${esc(p.surname)}" autocomplete="off"></div>
+        <div class="field"><label for="surname">姓名（選填）</label><input id="surname" maxlength="6" placeholder="例：王小明" value="${esc(p.name || "")}" autocomplete="off"></div>
         <div class="field"><span class="label" id="tl">稱呼（選填）</span><div class="seg" role="group" aria-labelledby="tl">
           ${["先生", "小姐", ""].map(t => `<button type="button" data-title="${t}" aria-pressed="${p.title === t}">${t || "不填"}</button>`).join("")}
         </div></div>
       </div>
       <div class="field"><label for="hour">出生時辰（選填）</label>
         <select id="hour"><option value="">不確定</option>${HOURS.map((h, i) => `<option value="${i}" ${String(p.hour) === String(i) ? "selected" : ""}>${h}</option>`).join("")}</select></div>
-      <label class="check"><input type="checkbox" id="consent" ${p.consent ? "checked" : ""}><span>同意以匿名方式把作答用於改進題目與統計。不勾也能看結果。<br><span class="note">勾了會存：你的作答和分數、年齡區間、稱呼、星座、生命靈數、紫微主星。不會存：姓氏、完整生日、出生時辰。不勾就什麼都不存。</span></span></label>
+      <label class="check"><input type="checkbox" id="consent" ${p.consent ? "checked" : ""}><span>同意以匿名方式把作答用於改進題目與統計。不勾也能看結果。<br><span class="note">勾了會存：你的作答和分數、年齡區間、稱呼、星座、生命靈數、紫微主星。姓名只存遮起來的樣子（例：王小明存成「王0明」）。不會存：完整姓名、完整生日、出生時辰。不勾就什麼都不存。</span></span></label>
       <p class="error" id="err" hidden>請先填出生年月日。</p>
       <div class="row"><button class="btn" type="submit">開始測驗</button><button class="btn ghost" type="button" id="demo" ${location.hash === "#test" ? "" : "hidden"}>測試用：隨機作答直接看結果</button></div>
     </form>`;
   const f = document.getElementById("f");
   f.querySelectorAll("[data-title]").forEach(b => b.onclick = () => { p.title = b.dataset.title; f.querySelectorAll("[data-title]").forEach(x => x.setAttribute("aria-pressed", x === b)); });
-  const read = () => { p.birth = f.birth.value; p.surname = f.surname.value.trim(); p.hour = f.hour.value; p.consent = f.consent.checked; };
+  const read = () => { p.birth = f.birth.value; p.name = f.surname.value.replace(/\s/g, ""); p.surname = surnameOf(p.name); p.hour = f.hour.value; p.consent = f.consent.checked; };
   f.onsubmit = e => { e.preventDefault(); read(); const age = ageOf(p.birth); if (!p.birth || !(age >= 6 && age <= 110)) { const er = document.getElementById("err"); er.textContent = p.birth ? "生日好像打錯了，再檢查一下年份。" : "請先填出生年月日。"; er.hidden = false; f.birth.focus(); return; } clearAnswers(); S.view = "quiz"; render(); };
   document.getElementById("demo").onclick = () => {
     read(); if (!p.birth) p.birth = "1995-08-16";
@@ -1147,7 +1147,15 @@ function renderResult() {
 }
 
 // ---------- 匿名統計：只在公開網站上、有勾同意、不是隨機作答時，送出一筆 ----------
-// 不送姓氏、生日、時辰；只送作答、分數、年齡區間、稱呼、星座、靈數、紫微主星（同意文字要跟這裡一致）。
+// 不送完整姓名、生日、時辰；只送作答、分數、年齡區間、稱呼、遮起來的姓名、星座、靈數、紫微主星（同意文字要跟這裡一致）。
+// 2026-11-27 Tae 定：姓名在瀏覽器裡就遮成「姓＋0＋最後一個字」（王小明→王0明），完整姓名不離開瀏覽器，之後用來對回同一位客人。
+const DOUBLE_SURNAMES = ["歐陽", "司馬", "上官", "諸葛", "張簡", "范姜", "東方", "端木", "夏侯", "皇甫", "司徒", "公孫", "長孫", "慕容"];
+function surnameOf(name) { return DOUBLE_SURNAMES.find(d => name.startsWith(d)) || name.slice(0, 1); }
+function maskName(name) {
+  const chars = [...name]; if (!chars.length) return "";
+  if (chars.length <= 2) return chars[0] + "0"; // 兩個字的名字遮成「王0」，不然等於存了全名
+  return chars[0] + "0" + chars[chars.length - 1];
+}
 const CAN_SAVE = location.protocol === "https:" && !location.hostname.includes("claude");
 const SUPABASE_URL = "https://wgizjbhynofqcldsjswr.supabase.co";
 const SUPABASE_KEY = "sb_publishable_J03tKmAmn0XNJPPitp_U9Q_Fj-NS-lI";
@@ -1171,7 +1179,7 @@ async function saveResult({ b5, raw, top3, c, attnOk, highShare }) {
     b5: Object.fromEntries(IPIP_USED.map(q => [q.n, S.b5[q.n] || 0])),
     b5s: Object.fromEntries(Object.entries(b5).map(([k, v]) => [k, Math.round(v)])),
     attnOk, highShare: Math.round(highShare * 100) / 100,
-    age: ageBand(S.profile.birth), title: S.profile.title || "",
+    age: ageBand(S.profile.birth), title: S.profile.title || "", name: maskName(S.profile.name || ""),
     sign: c?.sign || "", life: c?.life || null, star: c?.stars?.[0] || "",
   };
   try {
